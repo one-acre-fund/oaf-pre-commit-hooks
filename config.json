@@ -1,0 +1,14 @@
+{
+  "OAF_GIT_BRANCH_NAME_EXCEPTION": ["develop", "main", "master"],
+  "OAF_GIT_COMMIT_TYPES": [
+    "feat",
+    "fix",
+    "style",
+    "refactor",
+    "docs",
+    "perf",
+    "test",
+    "chore",
+    "build"
+  ]
+}
