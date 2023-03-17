@@ -24,7 +24,10 @@ def load_config() -> dict:
     config_file_path = cache_dir + "/oaf_pre-commit_config.json"
     config = {}
 
-    if os.path.exists(config_file_path) == False:
+    if os.path.exists(config_file_path):
+        with open(config_file_path) as json_file:
+            config = json.load(json_file)
+    if len(config) < 1:
         try:
             ssl._create_default_https_context = ssl._create_unverified_context
             with urlopen(CONFIG_URL) as f:
