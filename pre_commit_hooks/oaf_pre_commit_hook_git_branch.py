@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 """Helper script to be used as a pre-commit hook."""
 import argparse
+import json
 import os
 import re
 import ssl
 import subprocess
 import sys
 import warnings
-import json
 from typing import Sequence
 from urllib.request import urlopen
 
