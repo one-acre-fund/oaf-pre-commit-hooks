@@ -22,7 +22,9 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--config", default="", help="check README.md")
     parser.add_argument("--forced", default=True, help="check README.md")
-    args = parser.parse_args(argv)
+
+    args, unknown_args = parser.parse_known_args(argv)
+    print("staged files: ", len(unknown_args))
 
     if (
         args.forced == False
