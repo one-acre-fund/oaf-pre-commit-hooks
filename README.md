@@ -9,7 +9,7 @@ The repository for pre-commit hooks to check Git and GitFlow conventions and bes
 ```
 repos:
   - repo: https://github.com/one-acre-fund/oaf-pre-commit-hooks
-    rev: v2.0.0
+    rev: v1.0.0
     hooks:
       - id: oaf-pre-commit-hook-git-branch
       - id: oaf-pre-commit-hook-git-commit
