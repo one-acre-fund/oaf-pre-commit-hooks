@@ -1,7 +1,7 @@
 # Release Notes
 
-## Release v1.2.w
-. A fix to retrieve the right `.gitlint` config file
+## Release v1.2.2
+. A fix to retrieve the right `.gitlint config file
 ## Release v1.2.1
 . Release for other hooks and gitlint
 

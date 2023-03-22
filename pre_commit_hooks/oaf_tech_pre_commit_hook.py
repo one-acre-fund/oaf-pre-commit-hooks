@@ -298,14 +298,16 @@ def main(argv: Sequence[str] | None = None) -> int:
             else:
                 keywords = [
                     "contrib=contrib-title-conventional-commits",
-                    "types=" "title-min-length",
+                    "types=",
+                    "title-min-length",
                     "title-max-length",
                     "body-max-line-length",
                 ]
                 gitlint_file = open(gitlint_path, "r")
                 gitlint_config = gitlint_file.read()
                 for keyword in keywords:
-                    if contains_config_directive(gitlint_config, keyword) == False:
+                    matching_regex = contains_config_directive(gitlint_config, keyword)
+                    if len(matching_regex) < 1:
                         print(
                             "%s .gitlint is missing important rules %s %s %s"
                             % (
