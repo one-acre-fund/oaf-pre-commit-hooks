@@ -1,5 +1,6 @@
 {
-  "OAF_GIT_BRANCH_NAME_REGEX":"^((release\\/[0-9]+\\.[0-9]+\\.[0-9])|((feature|feat|cleanup|bugfix|hotfix|fix|devops)\\/[A-Z]+-[0-9]+(-[A-z0-9]+)+)|(umuganda|chore)\\/[a-zA-Z0-9+\\-]+)$",
+  "OAF_GIT_BRANCH_NAME_REGEX": "^((release\\/[0-9]+\\.[0-9]+\\.[0-9])|((feature|feat|cleanup|bugfix|hotfix|fix|devops)\\/[A-Z]+-[0-9]+(-[A-z0-9]+)+)|(umuganda|chore)\\/[a-zA-Z0-9+\\-]+)$",
+  "OAF_WATCH_COMMIT_HISTORY": false,
   "OAF_GIT_BRANCH_NAME_EXCEPTION": ["develop", "main", "master"],
   "OAF_GIT_COMMIT_TYPES": [
     "feat",
@@ -10,7 +11,17 @@
     "perf",
     "test",
     "chore",
+    "ci",
     "build"
   ],
-  "OAF_WATCH_COMMIT_HISTORY": false
+  "OAF_REQUIRED_HOOKS": {
+    "ggshield": {
+      "args": ["--help"],
+      "repo": "https://github.com/gitguardian/ggshield"
+    },
+    "gitlint": {
+      "args": ["--help"],
+      "repo": "https://github.com/jorisroovers/gitlint"
+    }
+  }
 }
