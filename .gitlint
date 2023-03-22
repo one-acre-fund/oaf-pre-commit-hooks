@@ -1,11 +1,23 @@
-#see more rules https://jorisroovers.com/gitlint/rules/
-
+#see more: https://jorisroovers.com/gitlint/rules/
 [general]
-# You HAVE to add the rule here to enable it, only configuring (such as below)
-# does NOT enable it.
+# add the rule here to enable it
 contrib=contrib-title-conventional-commits
 
+#configure each rule
 
 [contrib-title-conventional-commits]
-# Specify allowed commit types. For details see: https://www.conventionalcommits.org/
+# see more: https://www.conventionalcommits.org/
 types = feat,fix,style,refactor,docs,perf,test,chore,ci,build
+
+[title-min-length]
+min-length=8
+
+#You can always use body to extend commit msg
+[title-max-length]
+line-length=120
+
+[body-min-length]
+min-length=5
+
+[body-max-line-length]
+line-length=120
