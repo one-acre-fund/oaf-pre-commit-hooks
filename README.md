@@ -11,8 +11,7 @@ repos:
   - repo: https://github.com/one-acre-fund/oaf-pre-commit-hooks
     rev: v1.0.0
     hooks:
-      - id: oaf-pre-commit-hook-git-branch
-      - id: oaf-pre-commit-hook-git-commit
+      - id: oaf-tech-pre-commit-hook
 ```
 3. Auto-update the config to the latest repos' versions by executing `pre-commit autoupdate`
 
@@ -24,3 +23,5 @@ repos:
 3. **`Pre-commit` hooks**: to check whether required pre-commit hooks are installed
 4. **`Gitlint`**: to validate current commit message upon [prepare-commit-msg,commit] according to `.gitlint` config directives
 ## Report Issues
+1. Use Slack technical channels (#dev-team-leads)
+2.
