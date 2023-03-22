@@ -1,5 +1,5 @@
-# Pre-commit Hook for Git and GitHook Convention
-The repository for pre-commit hooks to check Git and GitFlow conventions and best practices
+# Pre-commit Hook for Technical Standards
+The repository for pre-commit hooks to check Git and GitFlow conventions and other best practices
 
 ## Installation
 1. Install pre-commit from https://pre-commit.com/#install
@@ -18,7 +18,9 @@ repos:
 
 4. Install with `pre-commit install`
 
-## Expected Errors
-1. `Git` CLI tool not installed or badly configued
-2. `GitFlow` convention for naming branches:
+## Expected Behaviors
+1. **`Git` branching model**: to make sure branch naming convention is followed
+2. **`Git` log**:  to show commit messages that do not follow conventional semantics on current branch
+3. **`Pre-commit` hooks**: to check whether required pre-commit hooks are installed
+4. **`Gitlint`**: to validate current commit message upon [prepare-commit-msg,commit] according to `.gitlint` config directives
 ## Report Issues

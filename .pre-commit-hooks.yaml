@@ -1,15 +1,7 @@
-- id: oaf-pre-commit-hook-git-branch
-  name: OAF Git Branching Model
-  description: Pre-commit hook to validate Git branching naming per GitFlow convention
-  entry: oaf-pre-commit-hook-git-branch
+- id: oaf-tech-pre-commit-hook
+  name: OAF Source Control Standards
+  description: Pre-commit hook to validate ITD best practices and technical standards
+  entry: oaf-tech-pre-commit-hook
   language: python
-  stages: [post-checkout, commit, push, manual]
-  args: [--force=True]
-
-- id: oaf-pre-commit-hook-git-commit
-  name: OAF Git Semantic Commit
-  description: Pre-commit hook to validate conventional commit
-  entry: oaf-pre-commit-hook-git-commit
-  language: python
-  stages: [commit-msg, prepare-commit-msg, manual]
-  args: [--force=True]
+  #stages: [post-checkout, commit, commit-msg, prepare-commit-msg, push, manual]
+  args: [--forced=False, --verbose=True]
