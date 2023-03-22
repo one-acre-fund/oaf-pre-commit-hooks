@@ -79,24 +79,26 @@ def load_config() -> int:
                     "args": ["--help"],
                     "repo": "https://github.com/jorisroovers/gitlint",
                 },
-                "markdownlint": {
-                    "args": ["--help"],
-                    "repo": "https://github.com/markdownlint/markdownlint",
-                },
             },
         }
     return len(oaf_config)
 
 
+def contains_config_directive(cfg, dir):
+    return re.findall(dir, cfg, re.M)
+
+
 def is_hook_installed(hook, args) -> bool:
     """Determine if the pre-commit hook is installed and enabled."""
     arg_str = " ".join(args)
-    cmd = "pre-commit run " + hook + " " + arg_str
-    # print("Running hook verification with command=`%s`"%cmd)
+    cmd = "pre-commit run " + hook + " " + arg_str + ""
     exit_code = os.WEXITSTATUS(os.system(cmd))
     exit_out = subprocess.getoutput(cmd)
     if exit_code != 0:
-        print("%s: code %d output %s " % (hook, exit_code, exit_out))
+        print(
+            "%s %s: code %d output %s %s"
+            % (TERMINAL_COLOR_WARNING, cmd, exit_code, exit_out, TERMINAL_COLOR_NORMAL)
+        )
     return exit_code == 0
 
 
@@ -227,8 +229,13 @@ def main(argv: Sequence[str] | None = None) -> int:
             hook_info = oaf_config["cache"]["OAF_REQUIRED_HOOKS"][hook]
             if is_hook_installed(hook, hook_info["args"]) == False:
                 print(
-                    "%s hook %s is not installed or is disabled %s"
-                    % (TERMINAL_COLOR_ERROR, hook, TERMINAL_COLOR_NORMAL)
+                    "%s hook %s is not installed or is disabled %s see more:%s"
+                    % (
+                        TERMINAL_COLOR_ERROR,
+                        hook,
+                        hook_info["repo"],
+                        TERMINAL_COLOR_NORMAL,
+                    )
                 )
                 return 1
 
@@ -256,7 +263,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 TERMINAL_COLOR_NORMAL,
             )
         )
-        return 1
+        return 2
 
     # check commit history on this branch
     commits = get_commits()
@@ -266,7 +273,56 @@ def main(argv: Sequence[str] | None = None) -> int:
             if len(oaf_config) < 1:
                 load_config()
                 if oaf_config["OAF_WATCH_COMMIT_HISTORY"]:
-                    return 1
+                    return 3
+
+    # check current commit message (e.g. prepare-commit-msg) using gitlint
+    load_config()
+    hook_info = oaf_config["cache"]["OAF_REQUIRED_HOOKS"]["gitlint"]
+    if is_hook_installed(hook, hook_info["args"]):
+        # check on .gitlint
+        gitlint_path = subprocess.getoutput("git rev-parse --show-toplevel")
+        gitlint_path += "/.gitlint"
+        try:
+            if os.path.exists(gitlint_path) == False:
+                print(
+                    "%s .gitlint is not found at gitlint_path %s %s"
+                    % (TERMINAL_COLOR_ERROR, gitlint_path, TERMINAL_COLOR_NORMAL)
+                )
+                gitlint_url = "https://raw.githubusercontent.com/one-acre-fund/oaf-pre-commit-hooks/main/.gitignore"
+                ssl._create_default_https_context = ssl._create_unverified_context
+                with urlopen(gitlint_url) as gitlint_file:
+                    gitlint_config = str(gitlint_file.read(), "UTF-8")
+                    f = open(gitlint_path, "w")
+                    f.write(gitlint_config)
+                    f.close()
+            else:
+                keywords = [
+                    "contrib=contrib-title-conventional-commits",
+                    "types=" "title-min-length",
+                    "title-max-length",
+                    "body-max-line-length",
+                ]
+                gitlint_file = open(gitlint_path, "r")
+                gitlint_config = gitlint_file.read()
+                for keyword in keywords:
+                    if contains_config_directive(gitlint_config, keyword) == False:
+                        print(
+                            "%s .gitlint is missing important rules %s %s %s"
+                            % (
+                                TERMINAL_COLOR_ERROR,
+                                gitlint_path,
+                                gitlint_config,
+                                TERMINAL_COLOR_NORMAL,
+                            )
+                        )
+                        gitlint_file.close()
+                        return 4
+        except Exception as e:
+            print(
+                "%sFailed to read .gitlint config from %s : %s %s"
+                % (TERMINAL_COLOR_ERROR, gitlint_path, e, TERMINAL_COLOR_NORMAL)
+            )
+            return 4
 
 
 if __name__ == "__main__":

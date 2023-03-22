@@ -7,7 +7,7 @@ contrib=contrib-title-conventional-commits
 
 [contrib-title-conventional-commits]
 # see more: https://www.conventionalcommits.org/
-types = feat,fix,style,refactor,docs,perf,test,chore,ci,build
+types=feat,fix,style,refactor,docs,perf,test,chore,ci,build
 
 [title-min-length]
 min-length=8

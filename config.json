@@ -22,10 +22,6 @@
     "gitlint": {
       "args": ["--help"],
       "repo": "https://github.com/jorisroovers/gitlint"
-    },
-    "markdownlint": {
-      "args": ["--help"],
-      "repo": "https://github.com/markdownlint/markdownlint"
     }
   }
 }
