@@ -288,7 +288,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                     "%s .gitlint is not found at gitlint_path %s %s"
                     % (TERMINAL_COLOR_ERROR, gitlint_path, TERMINAL_COLOR_NORMAL)
                 )
-                gitlint_url = "https://raw.githubusercontent.com/one-acre-fund/oaf-pre-commit-hooks/main/.gitignore"
+                gitlint_url = "https://raw.githubusercontent.com/one-acre-fund/oaf-pre-commit-hooks/main/.gitlint"
                 ssl._create_default_https_context = ssl._create_unverified_context
                 with urlopen(gitlint_url) as gitlint_file:
                     gitlint_config = str(gitlint_file.read(), "UTF-8")
