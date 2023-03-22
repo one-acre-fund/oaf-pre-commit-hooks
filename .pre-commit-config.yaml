@@ -19,8 +19,12 @@ repos:
     rev: 23.1.0
     hooks:
       - id: black
+  - repo: https://github.com/jorisroovers/gitlint
+    rev: v0.19.1
+    hooks:
+      - id: gitlint
   - repo: https://github.com/gitguardian/ggshield
-    rev: v1.14.3
+    rev: v1.14.4
     hooks:
       - id: ggshield
         name: GitGuardian secret scan

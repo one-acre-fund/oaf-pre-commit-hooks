@@ -37,7 +37,7 @@ def load_config() -> int:
         config_url = "https://raw.githubusercontent.com/one-acre-fund/oaf-pre-commit-hooks/main/config.json"
         ssl._create_default_https_context = ssl._create_unverified_context
         with urlopen(config_url) as f:
-            oaf_config["live"] = json.load(f)
+            # oaf_config["live"] = json.load(f)
             if len(oaf_config["live"]) > 1:
                 oaf_config["cache"] = oaf_config["live"]
                 with open(config_file_path, "w") as fp:
@@ -56,6 +56,7 @@ def load_config() -> int:
     if oaf_config["cache"] and len(oaf_config["live"]) < 1:
         oaf_config["cache"] = oaf_config["live"] = {
             "OAF_GIT_BRANCH_NAME_REGEX": "^((release\/[0-9]+\.[0-9]+\.[0-9])|((feature|feat|cleanup|bugfix|hotfix|fix|devops)\/[A-Z]+-[0-9]+(-[A-z0-9]+)+)|(umuganda|chore)\/[a-zA-Z0-9+\-]+)$",
+            "OAF_WATCH_COMMIT_HISTORY": False,
             "OAF_GIT_BRANCH_NAME_EXCEPTION": ["develop", "main", "master"],
             "OAF_GIT_COMMIT_TYPES": [
                 "feat",
@@ -66,19 +67,37 @@ def load_config() -> int:
                 "perf",
                 "test",
                 "chore",
+                "ci",
                 "build",
             ],
-            "OAF_WATCH_COMMIT_HISTORY": False,
+            "OAF_REQUIRED_HOOKS": {
+                "ggshield": {
+                    "args": ["--help"],
+                    "repo": "https://github.com/gitguardian/ggshield",
+                },
+                "gitlint": {
+                    "args": ["--help"],
+                    "repo": "https://github.com/jorisroovers/gitlint",
+                },
+                "markdownlint": {
+                    "args": ["--help"],
+                    "repo": "https://github.com/markdownlint/markdownlint",
+                },
+            },
         }
-    print(oaf_config)
     return len(oaf_config)
 
 
-def is_hook_installed(hook) -> bool:
+def is_hook_installed(hook, args) -> bool:
     """Determine if the pre-commit hook is installed and enabled."""
-    exit_code = os.WEXITSTATUS(os.system("git config --bool " + hook))
-    out = subprocess.getoutput("git config --bool " + hook)
-    return exit_code == 0 and out == "false"
+    arg_str = " ".join(args)
+    cmd = "pre-commit run " + hook + " " + arg_str
+    # print("Running hook verification with command=`%s`"%cmd)
+    exit_code = os.WEXITSTATUS(os.system(cmd))
+    exit_out = subprocess.getoutput(cmd)
+    if exit_code != 0:
+        print("%s: code %d output %s " % (hook, exit_code, exit_out))
+    return exit_code == 0
 
 
 def get_current_branch_name() -> str:
@@ -190,7 +209,7 @@ def get_commits() -> list:
 def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--config", default="", help="check README.md")
-    parser.add_argument("--forced", default=True, help="check README.md")
+    parser.add_argument("--forced", default="False", help="check README.md")
 
     args, unknown_args = parser.parse_known_args(argv)
     print(
@@ -202,15 +221,16 @@ def main(argv: Sequence[str] | None = None) -> int:
         print("How to pass args when calling the script:")
         parser.print_help()
 
-    if (
-        args.forced == False
-        and is_hook_installed("hooks.oaf-pre-commit-hook-git-branch") == False
-    ):
-        print(
-            "%sHook is not installed or disabled:(enable with 'git config hooks.oaf-pre-commit-hook-git-branch true') %s"
-            % (TERMINAL_COLOR_ERROR, TERMINAL_COLOR_NORMAL)
-        )
-        return 1
+    if args.forced == "False":
+        load_config()
+        for hook in oaf_config["cache"]["OAF_REQUIRED_HOOKS"]:
+            hook_info = oaf_config["cache"]["OAF_REQUIRED_HOOKS"][hook]
+            if is_hook_installed(hook, hook_info["args"]) == False:
+                print(
+                    "%s hook %s is not installed or is disabled %s"
+                    % (TERMINAL_COLOR_ERROR, hook, TERMINAL_COLOR_NORMAL)
+                )
+                return 1
 
     # validate branch naming
     branch = get_current_branch_name()
