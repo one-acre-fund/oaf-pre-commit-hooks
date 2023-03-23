@@ -18,7 +18,7 @@ TERMINAL_COLOR_PASS = "\033[1;32;40m"
 oaf_config = {"cache": {}, "live": {}}
 
 
-def load_config() -> int:
+def load_config(use_cache=True) -> int:
     pre_commit_home = os.getenv("PRE_COMMIT_HOME")
     if pre_commit_home is None or os.path.exists(pre_commit_home) == False:
         if (
@@ -45,8 +45,8 @@ def load_config() -> int:
                     json.dump(oaf_config["live"], fp)
     except Exception as e:
         print(
-            "%sFailed to get config from %s %s"
-            % (TERMINAL_COLOR_ERROR, config_url, TERMINAL_COLOR_NORMAL)
+            "%sFailed to get config from %s while cache= %s %s"
+            % (TERMINAL_COLOR_ERROR, config_url, use_cache, TERMINAL_COLOR_NORMAL)
         )
         print("%s trace: %s %s" % (TERMINAL_COLOR_WARNING, e, TERMINAL_COLOR_NORMAL))
 
@@ -118,7 +118,7 @@ def is_hook_installed_config(hook, info) -> bool:
                             return repo["repo"] == info["repo"]
     except Exception as e:
         print(e)
-        return False
+    return False
 
 
 def get_current_branch_name() -> str:
@@ -150,19 +150,20 @@ def get_git_conventional_commit_types() -> list:
     return oaf_config["cache"]["OAF_GIT_COMMIT_TYPES"]
 
 
-def validate_git_commit(commit) -> bool:
+def validate_git_commit(commit, verbose=False) -> bool:
     """Parse and verify git commit format"""
     commit_title = commit["title"].split(":")
     if len(commit_title) == 1:
-        print(
-            "%sCommit %s has invalid message `%s` %s"
-            % (
-                TERMINAL_COLOR_WARNING,
-                commit["hash"],
-                commit["title"],
-                TERMINAL_COLOR_NORMAL,
+        if verbose:
+            print(
+                "%sCommit %s has invalid message `%s` %s"
+                % (
+                    TERMINAL_COLOR_WARNING,
+                    commit["hash"],
+                    commit["title"],
+                    TERMINAL_COLOR_NORMAL,
+                )
             )
-        )
         return False
 
     is_commit_ok = False
@@ -171,16 +172,17 @@ def validate_git_commit(commit) -> bool:
     try:
         is_commit_ok = oaf_commit_types.index(commit_type) >= 0
     except ValueError:
-        print(
-            "%sCommit %s '%s' has wrong type `%s` %s"
-            % (
-                TERMINAL_COLOR_WARNING,
-                commit["hash"],
-                commit["title"],
-                commit_type,
-                TERMINAL_COLOR_NORMAL,
+        if verbose:
+            print(
+                "%sCommit %s '%s' has wrong type `%s` %s"
+                % (
+                    TERMINAL_COLOR_WARNING,
+                    commit["hash"],
+                    commit["title"],
+                    commit_type,
+                    TERMINAL_COLOR_NORMAL,
+                )
             )
-        )
         return False
 
     return is_commit_ok
@@ -236,12 +238,13 @@ def main(argv: Sequence[str] | None = None) -> int:
         "%s %2d files to check %s"
         % (TERMINAL_COLOR_PASS, len(unknown_args), TERMINAL_COLOR_NORMAL)
     )
+    if args.forced == True:
+        print("Forced mode: ")
 
-    if len(sys.argv) == 1:
-        print("How to pass args when calling the script:")
-        parser.print_help()
+    # check on required `pre-commit` hooks
+    if len(oaf_config["cache"]) < 1:
+        load_config()
 
-    load_config()
     for hook in oaf_config["cache"]["OAF_REQUIRED_HOOKS"]:
         hook_info = oaf_config["cache"]["OAF_REQUIRED_HOOKS"][hook]
         if hook_info is None or is_hook_installed_config(hook, hook_info) == False:
@@ -257,53 +260,61 @@ def main(argv: Sequence[str] | None = None) -> int:
             return 1
 
     # validate branch naming
+    if len(oaf_config["cache"]) < 1:
+        load_config()
+
     branch = get_current_branch_name()
-    is_branch_lts = False
-    is_branch_ok = False
     oaf_lts_branches = get_git_branch_name_exceptions()
     try:
-        is_branch_lts = is_branch_ok = oaf_lts_branches.index(branch) >= 0
+        is_branch_ok = is_branch_lts = oaf_lts_branches.index(branch) >= 0
     except ValueError:
-        pass
+        is_branch_ok = is_branch_lts = False
+
     if is_branch_lts == False:
         oaf_regex = get_git_branch_name_regex()
         is_branch_ok = re.search(oaf_regex, branch)
 
-    if is_branch_ok == False:
+    if is_branch_ok is None or is_branch_ok == False:
         print(
-            "%s branch %s name should follow {prefix/JIRA#-descr}:"
-            "prefix=%s %s"
+            "%sBranch `%s` should follow name={prefix/JIRA#-descr}:"
+            "prefix=%s or name=%s %s"
             % (
-                TERMINAL_COLOR_WARNING,
+                TERMINAL_COLOR_ERROR,
                 branch,
+                oaf_config["cache"]["OAF_GIT_BRANCH_NAME_REGEX"],
                 ",".join(oaf_lts_branches),
                 TERMINAL_COLOR_NORMAL,
             )
         )
-        return 2
+        return 1
 
     # check commit history on this branch
-    commits = get_commits()
-    for commit in commits:
-        is_commit_ok = validate_git_commit(commit)
-        if is_commit_ok == False and is_branch_lts == False:
-            if len(oaf_config) < 1:
-                load_config()
-                if oaf_config["OAF_WATCH_COMMIT_HISTORY"]:
-                    return 3
+    if len(oaf_config["cache"]) < 1:
+        load_config()
+
+    if oaf_config["cache"]["OAF_WATCH_COMMIT_HISTORY"]:
+        commits = get_commits()
+        for commit in commits:
+            is_commit_ok = validate_git_commit(commit)
+            if is_commit_ok == False and is_branch_lts == False:
+                return 3
 
     # check current commit message (e.g. prepare-commit-msg) using gitlint
-    load_config()
+    if len(oaf_config["cache"]) < 1:
+        load_config()
+
     hook_info = oaf_config["cache"]["OAF_REQUIRED_HOOKS"]["gitlint"]
-    if hook_info is None or is_hook_installed_config(hook, hook_info):
+    if hook_info is None or is_hook_installed_config("gitlint", hook_info) == False:
+        return 4
+    else:
         # check on .gitlint
         gitlint_path = subprocess.getoutput("git rev-parse --show-toplevel")
         gitlint_path += "/.gitlint"
         try:
             if os.path.exists(gitlint_path) == False:
                 print(
-                    "%s .gitlint is not found at gitlint_path %s %s"
-                    % (TERMINAL_COLOR_ERROR, gitlint_path, TERMINAL_COLOR_NORMAL)
+                    "%s installing .gitlint at %s %s"
+                    % (TERMINAL_COLOR_WARNING, gitlint_path, TERMINAL_COLOR_NORMAL)
                 )
                 gitlint_url = "https://raw.githubusercontent.com/one-acre-fund/oaf-pre-commit-hooks/main/.gitlint"
                 ssl._create_default_https_context = ssl._create_unverified_context
@@ -342,6 +353,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 % (TERMINAL_COLOR_ERROR, gitlint_path, e, TERMINAL_COLOR_NORMAL)
             )
             return 4
+    return 0
 
 
 if __name__ == "__main__":
