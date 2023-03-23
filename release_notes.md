@@ -1,5 +1,7 @@
 # Release Notes
 
+## Release v1.3.1
+Use config to throttle loggging and performance-related tweaks
 ## Release v1.3.0
 . Add a helper function `is_hook_installed_config` that parses `.pre-commit-config.yaml` to check whether required hooks are installed
 ## Release v1.2.2
