@@ -2,6 +2,7 @@
 """Helper script to be used as a pre-commit hook."""
 import argparse
 import json
+from ruamel import yaml
 import os
 import re
 import ssl
@@ -14,30 +15,30 @@ TERMINAL_COLOR_ERROR = "\033[1;31;40m"
 TERMINAL_COLOR_WARNING = "\033[1;33;40m"
 TERMINAL_COLOR_NORMAL = "\033[0;37;40m"
 TERMINAL_COLOR_PASS = "\033[1;32;40m"
-oaf_config = {"cache": [], "live": []}
+oaf_config = {"cache": {}, "live": {}}
 
 
 def load_config() -> int:
     pre_commit_home = os.getenv("PRE_COMMIT_HOME")
-    cache_dir = ""
     if pre_commit_home is None or os.path.exists(pre_commit_home) == False:
-        pre_commit_home = (
-            "" if os.getenv("XDG_CACHE_HOME") is None else os.getenv("XDG_CACHE_HOME")
-        )
-        cache_dir = pre_commit_home + "/pre-commit"
-        if os.path.exists(cache_dir) == False:
+        if (
+            os.getenv("XDG_CACHE_HOME") is not None
+            and len(os.getenv("XDG_CACHE_HOME")) >= 1
+        ):
+            pre_commit_home = os.getenv("XDG_CACHE_HOME") + "/pre-commit"
+
+        if pre_commit_home is None or os.path.exists(pre_commit_home) == False:
             user_home = os.path.expanduser("~")
-            cache_dir = user_home + "/.cache/pre-commit"
-            if os.path.exists(cache_dir) == False:
-                os.makedirs(cache_dir)
+            pre_commit_home = user_home + "/.cache/pre-commit"
+            if os.path.exists(pre_commit_home) == False:
+                os.makedirs(pre_commit_home)
 
-    config_file_path = cache_dir + "/oaf_pre-commit_config.json"
-
+    config_file_path = pre_commit_home + "/oaf_pre-commit_config.json"
     try:
         config_url = "https://raw.githubusercontent.com/one-acre-fund/oaf-pre-commit-hooks/main/config.json"
         ssl._create_default_https_context = ssl._create_unverified_context
         with urlopen(config_url) as f:
-            # oaf_config["live"] = json.load(f)
+            oaf_config["live"] = json.load(f)
             if len(oaf_config["live"]) > 1:
                 oaf_config["cache"] = oaf_config["live"]
                 with open(config_file_path, "w") as fp:
@@ -53,7 +54,7 @@ def load_config() -> int:
         with open(config_file_path) as json_file:
             oaf_config["cache"] = json.load(json_file)
 
-    if oaf_config["cache"] and len(oaf_config["live"]) < 1:
+    if len(oaf_config["cache"]) < 1 and len(oaf_config["live"]) < 1:
         oaf_config["cache"] = oaf_config["live"] = {
             "OAF_GIT_BRANCH_NAME_REGEX": "^((release\/[0-9]+\.[0-9]+\.[0-9])|((feature|feat|cleanup|bugfix|hotfix|fix|devops)\/[A-Z]+-[0-9]+(-[A-z0-9]+)+)|(umuganda|chore)\/[a-zA-Z0-9+\-]+)$",
             "OAF_WATCH_COMMIT_HISTORY": False,
@@ -72,11 +73,17 @@ def load_config() -> int:
             ],
             "OAF_REQUIRED_HOOKS": {
                 "ggshield": {
-                    "args": ["--help"],
+                    "args": ["--verbose"],
                     "repo": "https://github.com/gitguardian/ggshield",
                 },
                 "gitlint": {
-                    "args": ["--help"],
+                    "args": ["--verbose"],
+                    "repo": "https://github.com/jorisroovers/gitlint",
+                },
+                "markdownlint": {
+                    "args": [
+                        "--verbose",
+                    ],
                     "repo": "https://github.com/jorisroovers/gitlint",
                 },
             },
@@ -88,18 +95,30 @@ def contains_config_directive(cfg, dir):
     return re.findall(dir, cfg, re.M)
 
 
-def is_hook_installed(hook, args) -> bool:
-    """Determine if the pre-commit hook is installed and enabled."""
-    arg_str = " ".join(args)
-    cmd = "pre-commit run " + hook + " " + arg_str + ""
+def is_hook_installed_cli(hook, info) -> bool:
+    """Determine if the pre-commit hook is installed and enabled using CLI"""
+    arg_str = " ".join(info["args"])
+    cmd = "pre-commit run " + hook + " " + arg_str.strip() + ""
     exit_code = os.WEXITSTATUS(os.system(cmd))
-    exit_out = subprocess.getoutput(cmd)
-    if exit_code != 0:
-        print(
-            "%s %s: code %d output %s %s"
-            % (TERMINAL_COLOR_WARNING, cmd, exit_code, exit_out, TERMINAL_COLOR_NORMAL)
-        )
-    return exit_code == 0
+    exit_output = subprocess.getoutput(cmd)
+    no_hook_found = exit_output.find("No hook with id")
+    print(cmd, no_hook_found, exit_code)
+    return no_hook_found == -1
+
+
+def is_hook_installed_config(hook, info) -> bool:
+    """Determine if the pre-commit hook is installed and enabled by config YAML"""
+    try:
+        with open(".pre-commit-config.yaml", "r") as stream:
+            config = yaml.safe_load(stream)
+            if config["repos"] is not None:
+                for repo in config["repos"]:
+                    for config_hook in repo["hooks"]:
+                        if hook == config_hook["id"]:
+                            return repo["repo"] == info["repo"]
+    except Exception as e:
+        print(e)
+        return False
 
 
 def get_current_branch_name() -> str:
@@ -210,7 +229,6 @@ def get_commits() -> list:
 
 def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--config", default="", help="check README.md")
     parser.add_argument("--forced", default="False", help="check README.md")
 
     args, unknown_args = parser.parse_known_args(argv)
@@ -223,21 +241,20 @@ def main(argv: Sequence[str] | None = None) -> int:
         print("How to pass args when calling the script:")
         parser.print_help()
 
-    if args.forced == "False":
-        load_config()
-        for hook in oaf_config["cache"]["OAF_REQUIRED_HOOKS"]:
-            hook_info = oaf_config["cache"]["OAF_REQUIRED_HOOKS"][hook]
-            if is_hook_installed(hook, hook_info["args"]) == False:
-                print(
-                    "%s hook %s is not installed or is disabled %s see more:%s"
-                    % (
-                        TERMINAL_COLOR_ERROR,
-                        hook,
-                        hook_info["repo"],
-                        TERMINAL_COLOR_NORMAL,
-                    )
+    load_config()
+    for hook in oaf_config["cache"]["OAF_REQUIRED_HOOKS"]:
+        hook_info = oaf_config["cache"]["OAF_REQUIRED_HOOKS"][hook]
+        if hook_info is None or is_hook_installed_config(hook, hook_info) == False:
+            print(
+                "%s hook %s is not installed or is disabled %s see more:%s"
+                % (
+                    TERMINAL_COLOR_ERROR,
+                    hook,
+                    hook_info["repo"],
+                    TERMINAL_COLOR_NORMAL,
                 )
-                return 1
+            )
+            return 1
 
     # validate branch naming
     branch = get_current_branch_name()
@@ -278,7 +295,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     # check current commit message (e.g. prepare-commit-msg) using gitlint
     load_config()
     hook_info = oaf_config["cache"]["OAF_REQUIRED_HOOKS"]["gitlint"]
-    if is_hook_installed(hook, hook_info["args"]):
+    if hook_info is None or is_hook_installed_config(hook, hook_info):
         # check on .gitlint
         gitlint_path = subprocess.getoutput("git rev-parse --show-toplevel")
         gitlint_path += "/.gitlint"
